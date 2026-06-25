@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# ── development ──────────────────────────────────────────────────────────────
+# development stage
 FROM base AS development
 
 COPY requirements-dev.txt .
@@ -19,7 +19,7 @@ RUN pip install --no-cache-dir -r requirements-dev.txt
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
 
-# ── production ───────────────────────────────────────────────────────────────
+# production stage
 FROM base AS production
 
 COPY . .

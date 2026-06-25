@@ -1,4 +1,4 @@
-# Local development overrides — use with: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+# Local development overrides - use with: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
 services:
   postgres:
     ports:
@@ -45,6 +45,4 @@ services:
     environment:
       VITE_API_URL: http://localhost:8000
 
-  nginx:
-    ports:
-      - "80:80"
+  # No nginx in dev - access backend directly on 8000 and frontend on 5173
