@@ -2,7 +2,7 @@
 
 This project uses **Nginx Proxy Manager (NPM)** for TLS termination and reverse proxying,
 and **Portainer** for managing the Docker Compose stack. The app's nginx container is not
-needed — NPM replaces it.
+needed - NPM replaces it.
 
 ---
 
@@ -67,9 +67,9 @@ available on host port `8081`, frontend on `8082`.
 
 ## Step 3: Configure Nginx Proxy Manager
 
-You need two proxy hosts in NPM. No cert management needed — NPM handles Let's Encrypt automatically.
+You need two proxy hosts in NPM. No cert management needed - NPM handles Let's Encrypt automatically.
 
-### Proxy host 1 — Frontend
+### Proxy host 1 - Frontend
 
 | Field | Value |
 |---|---|
@@ -79,11 +79,11 @@ You need two proxy hosts in NPM. No cert management needed — NPM handles Let's
 | Forward port | `8082` |
 | SSL -> Let's Encrypt | Enable, check "Force SSL" and "HTTP/2 Support" |
 
-### Proxy host 2 — Backend API
+### Proxy host 2 - Backend API
 
 You have two options:
 
-**Option A — Separate subdomain (simpler)**
+**Option A - Separate subdomain (simpler)**
 
 | Field | Value |
 |---|---|
@@ -96,7 +96,7 @@ You have two options:
 Set `ALLOWED_ORIGINS=https://lessonplanner.your-domain.com` in the stack env vars,
 and configure the frontend to call `https://api.lessonplanner.your-domain.com`.
 
-**Option B — Path-based on the same domain (recommended)**
+**Option B - Path-based on the same domain (recommended)**
 
 In NPM, on the frontend proxy host, add a custom Nginx config under **Advanced**:
 
@@ -133,15 +133,59 @@ HTTP challenge can reach it.
 
 ---
 
-## Step 5: Wire the CI/CD pipeline
+## Step 5: Tailscale - bridge between GitHub Actions and your LAN
 
-1. On the Portainer stack detail page, enable **GitOps updates**
-2. Copy the webhook URL: `https://<portainer-host>:9443/api/stacks/webhooks/<uuid>`
-3. GitHub -> **Settings** -> **Secrets and variables** -> **Actions** -> add:
-   - `PORTAINER_WEBHOOK_URL`: the webhook URL above
-   - `APP_HEALTH_URL`: `https://lessonplanner.your-domain.com/api/health`
+GitHub Actions runners run on GitHub's cloud and cannot reach your homelab's private IP directly.
+Tailscale creates an encrypted overlay network (tailnet) that both your homelab and the CI runner
+join, so the runner can call your Portainer webhook as if it were on your LAN.
 
-`GITHUB_TOKEN` is automatic — no action needed for GHCR image pushes.
+### On the homelab
+
+Start the standalone Tailscale service (separate from the app stack):
+
+```bash
+# Create a .env file alongside docker-compose.tailscale.yml
+echo "TS_AUTHKEY=<your-auth-key>" >> .env
+echo "TS_HOSTNAME=homelab" >> .env
+
+docker compose -f docker-compose.tailscale.yml up -d
+```
+
+Get an auth key from: **Tailscale admin** -> **Settings** -> **Keys** -> **Generate auth key**.
+Check **Reusable** so the container can reconnect after restarts.
+
+Once running, note your homelab's Tailscale IP from `https://login.tailscale.com/admin/machines`
+(looks like `100.x.x.x`).
+
+### In Tailscale admin - create an OAuth client for CI
+
+GitHub Actions uses an OAuth client (not a personal auth key) so it can authenticate without
+a long-lived secret tied to your account.
+
+1. Tailscale admin -> **Settings** -> **OAuth clients** -> **Generate OAuth client**
+2. Scopes: `devices:write`
+3. Add tag `tag:ci` (create it under **Access controls** if it doesn't exist)
+4. Copy the **client ID** and **client secret**
+
+### GitHub Actions secrets
+
+GitHub -> **Settings** -> **Secrets and variables** -> **Actions** -> add:
+
+| Secret | Value |
+|---|---|
+| `TS_OAUTH_CLIENT_ID` | OAuth client ID from Tailscale |
+| `TS_OAUTH_CLIENT_SECRET` | OAuth client secret from Tailscale |
+| `PORTAINER_WEBHOOK_URL` | `https://100.x.x.x:9443/api/stacks/webhooks/<uuid>` (use Tailscale IP) |
+| `APP_HEALTH_URL` | `https://lessonplanner.your-domain.com/api/health` |
+
+Note: use the **Tailscale IP** (`100.x.x.x`) for `PORTAINER_WEBHOOK_URL`, not the LAN IP.
+
+### Enable Portainer webhook
+
+1. Portainer -> stack detail -> enable **GitOps updates**
+2. Copy the webhook URL and set it as `PORTAINER_WEBHOOK_URL` above
+
+`GITHUB_TOKEN` is automatic - no action needed for GHCR image pushes.
 
 ---
 
@@ -151,7 +195,8 @@ HTTP challenge can reach it.
 git push main
     -> GitHub Actions: run backend + frontend tests
     -> GitHub Actions: build images, push to ghcr.io/<repo>/{backend,frontend}:latest
-    -> GitHub Actions: POST to Portainer webhook
+    -> GitHub Actions: connect runner to tailnet via Tailscale OAuth
+    -> GitHub Actions: POST to Portainer webhook (via Tailscale IP)
     -> Portainer: docker compose pull + up -d
     -> GitHub Actions: GET https://<domain>/api/health (must return 200)
 ```
@@ -166,4 +211,4 @@ git push main
 | React frontend | 80 | 8082 | NPM proxy host |
 | Postgres | 5432 | not exposed | backend/celery only |
 | Redis | 6379 | not exposed | backend/celery only |
-| Portainer | 9443 | 9443 | you, from LAN |
+| Portainer | 9443 | 9443 | you (LAN) + CI (Tailscale) |

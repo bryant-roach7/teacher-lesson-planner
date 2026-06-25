@@ -1,0 +1,38 @@
+# Standalone Tailscale service - run independently of the app stack.
+# Brings the homelab onto your tailnet so GitHub Actions can reach
+# internal services (Portainer webhook, health check endpoint) without
+# opening any ports on your router.
+#
+# Usage:
+#   docker compose -f docker-compose.tailscale.yml up -d
+#   docker compose -f docker-compose.tailscale.yml down
+#
+# Required env vars (set in a local .env file or export before running):
+#   TS_AUTHKEY   - reusable/ephemeral auth key from https://login.tailscale.com/admin/settings/keys
+#   TS_HOSTNAME  - how this machine appears in your tailnet (e.g. "homelab")
+
+services:
+  tailscale:
+    image: tailscale/tailscale:latest
+    container_name: tailscale-homelab
+    restart: unless-stopped
+    # host networking lets Tailscale route to all services on this machine,
+    # including Portainer (9443), app backend (8081), and frontend (8082)
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    volumes:
+      - tailscale_state:/var/lib/tailscale
+    environment:
+      TS_AUTHKEY: ${TS_AUTHKEY}
+      TS_HOSTNAME: ${TS_HOSTNAME:-homelab}
+      TS_STATE_DIR: /var/lib/tailscale
+      # Advertise this machine as an exit node if you want full tunnel routing.
+      # Leave empty to use as a simple peer (enough for webhook access).
+      TS_EXTRA_ARGS: ${TS_EXTRA_ARGS:-}
+
+volumes:
+  tailscale_state:
