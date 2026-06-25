@@ -148,6 +148,7 @@ jobs:
       - name: Trigger Portainer webhook
         run: |
           HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            --insecure \
             -X POST "${{ secrets.PORTAINER_WEBHOOK_URL }}")
           echo "Portainer webhook response: $HTTP_STATUS"
           if [ "$HTTP_STATUS" != "200" ]; then
