@@ -18,8 +18,7 @@ services:
       - ./backend:/app
     ports:
       - "8000:8000"
-    environment:
-      ENVIRONMENT: development
+    # All env vars come from docker-compose.yml which reads from .env
 
   celery:
     image: teacher-lesson-planner/backend:dev
@@ -28,8 +27,6 @@ services:
       target: development
     volumes:
       - ./backend:/app
-    environment:
-      ENVIRONMENT: development
 
   frontend:
     image: teacher-lesson-planner/frontend:dev
@@ -41,8 +38,9 @@ services:
       - ./frontend:/app
       - /app/node_modules
     ports:
-      - "5173:5173"
+      - "4173:4173"
     environment:
-      VITE_API_URL: http://localhost:8000
+      # Vite dev server proxy target — uses Docker service hostname, not localhost
+      BACKEND_URL: http://backend:8000
 
-  # No nginx in dev - access backend directly on 8000 and frontend on 5173
+  # No nginx in dev - access backend directly on 8000 and frontend on 4173
