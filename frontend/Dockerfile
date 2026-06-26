@@ -6,13 +6,13 @@ COPY package*.json ./
 # development stage
 FROM base AS development
 
-RUN npm ci
+RUN npm install
 CMD ["npm", "run", "dev", "--", "--host"]
 
 # builder stage
 FROM base AS builder
 
-RUN npm ci
+RUN npm install
 COPY . .
 RUN npm run build
 
