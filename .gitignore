@@ -1,27 +1,36 @@
+# Dependencies
+node_modules/
+
+# Build output
+frontend/dist/
+backend/__pycache__/
+backend/**/__pycache__/
+**/*.pyc
+**/*.pyo
+.venv/
+
 # Environment
 .env
 .env.local
 .env.*.local
-nginx/certs/
-
-# Python
-__pycache__/
-*.py[cod]
-*.egg-info/
-.venv/
-dist/
-.mypy_cache/
-.ruff_cache/
-.pytest_cache/
-htmlcov/
-.coverage
-
-# Node
-node_modules/
-frontend/dist/
-frontend/.vite/
 
 # Editor
 .vscode/
 .idea/
 *.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# TypeScript build info
+tsconfig.tsbuildinfo
+frontend/tsconfig.tsbuildinfo
+
+# Certs
+nginx/certs/
