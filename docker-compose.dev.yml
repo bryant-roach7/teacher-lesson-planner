@@ -1,0 +1,46 @@
+# Local development overrides - use with: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+services:
+  postgres:
+    ports:
+      - "5432:5432"
+
+  redis:
+    ports:
+      - "6379:6379"
+
+  backend:
+    image: teacher-lesson-planner/backend:dev
+    build:
+      context: ./backend
+      target: development
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    # All env vars come from docker-compose.yml which reads from .env
+
+  celery:
+    image: teacher-lesson-planner/backend:dev
+    build:
+      context: ./backend
+      target: development
+    volumes:
+      - ./backend:/app
+
+  frontend:
+    image: teacher-lesson-planner/frontend:dev
+    build:
+      context: ./frontend
+      target: development
+    command: npm run dev -- --host
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "4173:4173"
+    environment:
+      # Vite dev server proxy target — uses Docker service hostname, not localhost
+      BACKEND_URL: http://backend:8000
+
+  # No nginx in dev - access backend directly on 8000 and frontend on 4173
